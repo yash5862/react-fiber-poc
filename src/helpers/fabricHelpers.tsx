@@ -27,3 +27,7 @@ export const TextBoxRef = () => {
     fontSize: 16
   });
 };
+
+export const ImageRef = (data, options) => {
+  return new fabric.Image(data, options);
+};

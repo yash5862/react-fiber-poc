@@ -1,9 +1,15 @@
 import {useRef, useEffect, useState} from "react";
 import {fabric} from "fabric";
-import {CircleRef, RectangleRef, TextBoxRef} from "../helpers/fabricHelpers";
+import {CircleRef, ImageRef, RectangleRef, TextBoxRef} from "../helpers/fabricHelpers";
 import axios from "axios";
+export { PDFDocumentLoadingTask, PDFDocumentProxy,
+PDFPageProxy, getDocument } from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist';
+(pdfjsLib as any).GlobalWorkerOptions.workerSrc =
+`//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.worker.js`;
+export { pdfjsLib };
 
-export const FabricDemo = () => {
+export const FabricDemo = (pdfData, pages) => {
 	const fabricRef = useRef(null);
 	const canvasRef = useRef(null);
 	const [fabricData, setFabricData] = useState<any>(null);
@@ -254,6 +260,75 @@ export const FabricDemo = () => {
 		}
 	};
 
+	const Base64Prefix = "data:application/pdf;base64,";
+
+	function readBlob(blob) {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.addEventListener('load', () => resolve(reader.result));
+			reader.addEventListener('error', reject)
+			reader.readAsDataURL(blob);
+		})
+	}
+
+	async function printPDF(pdfData, pages = null) {
+		// const pdfjsLib = await getPdfHandler();
+		pdfData = pdfData instanceof Blob ? await readBlob(pdfData) : pdfData;
+		const data = atob(pdfData.startsWith(Base64Prefix) ? pdfData.substring(Base64Prefix.length) : pdfData);
+		// Using DocumentInitParameters object to load binary data.
+		const loadingTask = pdfjsLib.getDocument({data});
+		return loadingTask.promise
+			.then((pdf) => {
+				const numPages = pdf.numPages;
+				return new Array(numPages).fill(0)
+					.map((__, i) => {
+						const pageNumber = i + 1;
+						if (pages && pages.indexOf(pageNumber) == -1) {
+							return;
+						}
+						return pdf.getPage(pageNumber)
+							.then((page) => {
+								//  retina scaling
+								const viewport = page.getViewport({scale: window.devicePixelRatio});
+								// Prepare canvas using PDF page dimensions
+								const canvas = document.createElement('canvas');
+								const context = canvas.getContext('2d');
+								canvas.height = viewport.height
+								canvas.width = viewport.width;
+								// Render PDF page into canvas context
+								const renderContext = {
+									canvasContext: context,
+									viewport: viewport
+								};
+								const renderTask = page.render(renderContext);
+								return renderTask.promise.then(() => canvas);
+							});
+					});
+			});
+	}
+
+	async function pdfToImage(pdfData) {
+		const scale = 1 / window.devicePixelRatio;
+		return (await printPDF(pdfData))
+			.map(async c => {
+				fabricRef.current.add(ImageRef(await c, {
+					scaleX: scale,
+					scaleY: scale,
+				}));
+			});
+	}
+
+	const hiddenFileInput = useRef(null);
+
+	const handleFileClick = event => {
+		hiddenFileInput.current.click();
+	  };
+
+	const handleChange = async (event) => {
+	    const fileUploaded = event.target.files[0];
+		await pdfToImage(fileUploaded)
+	  };
+
 	return (
 		<div style={{textAlign: "center"}}>
 			<button onClick={addRectangle}>Rectangle</button>
@@ -264,6 +339,8 @@ export const FabricDemo = () => {
 				Drawing Mode {fabricRef?.current?.isDrawingMode ? "ON" : "OFF"}
 			</button>
 			<button onClick={saveCanvas}>{fabricData && fabricData.id ? "Update" : "Save"}</button>
+			<button onClick={handleFileClick}>Upload File</button>
+			<input type="file" accept="application/pdf" ref={hiddenFileInput} onChange={handleChange} style={{display: "none"}}/>
 			<canvas ref={canvasRef} style={{height: "800px", width: "800px"}}/>
 		</div>
 	);
