@@ -16,147 +16,24 @@ export const FabricDemo = (pdfData, pages) => {
 	const [windowDimensions, setWindowDimensions] = useState(
 		getWindowDimensions()
 	);
-
-	const json = {
-		version: "5.3.0",
-		objects: [
-			{
-				type: "rect",
-				version: "5.3.0",
-				originX: "left",
-				originY: "top",
-				left: 50,
-				top: 50,
-				width: 50,
-				height: 50,
-				fill: "red",
-				stroke: null,
-				strokeWidth: 1,
-				strokeDashArray: null,
-				strokeLineCap: "butt",
-				strokeDashOffset: 0,
-				strokeLineJoin: "miter",
-				strokeUniform: false,
-				strokeMiterLimit: 4,
-				scaleX: 1,
-				scaleY: 1,
-				angle: 0,
-				flipX: false,
-				flipY: false,
-				opacity: 1,
-				shadow: null,
-				visible: true,
-				backgroundColor: "",
-				fillRule: "nonzero",
-				paintFirst: "fill",
-				globalCompositeOperation: "source-over",
-				skewX: 0,
-				skewY: 0,
-				rx: 0,
-				ry: 0,
-			},
-			{
-				type: "circle",
-				version: "5.3.0",
-				originX: "left",
-				originY: "top",
-				left: 185,
-				top: 91,
-				width: 50,
-				height: 50,
-				fill: "green",
-				stroke: null,
-				strokeWidth: 1,
-				strokeDashArray: null,
-				strokeLineCap: "butt",
-				strokeDashOffset: 0,
-				strokeLineJoin: "miter",
-				strokeUniform: false,
-				strokeMiterLimit: 4,
-				scaleX: 1,
-				scaleY: 1,
-				angle: 0,
-				flipX: false,
-				flipY: false,
-				opacity: 1,
-				shadow: null,
-				visible: true,
-				backgroundColor: "",
-				fillRule: "nonzero",
-				paintFirst: "fill",
-				globalCompositeOperation: "source-over",
-				skewX: 0,
-				skewY: 0,
-				radius: 25,
-				startAngle: 0,
-				endAngle: 360,
-			},
-			{
-				type: "textbox",
-				version: "5.3.0",
-				originX: "left",
-				originY: "top",
-				left: 329,
-				top: 82,
-				width: 200,
-				height: 18.08,
-				fill: "rgb(0,0,0)",
-				stroke: null,
-				strokeWidth: 1,
-				strokeDashArray: null,
-				strokeLineCap: "butt",
-				strokeDashOffset: 0,
-				strokeLineJoin: "miter",
-				strokeUniform: false,
-				strokeMiterLimit: 4,
-				scaleX: 1,
-				scaleY: 1,
-				angle: 0,
-				flipX: false,
-				flipY: false,
-				opacity: 1,
-				shadow: null,
-				visible: true,
-				backgroundColor: "",
-				fillRule: "nonzero",
-				paintFirst: "fill",
-				globalCompositeOperation: "source-over",
-				skewX: 0,
-				skewY: 0,
-				fontFamily: "Times New Roman",
-				fontWeight: "normal",
-				fontSize: 16,
-				text: "Enter Your Text Here",
-				underline: false,
-				overline: false,
-				linethrough: false,
-				textAlign: "left",
-				fontStyle: "normal",
-				lineHeight: 1.16,
-				textBackgroundColor: "",
-				charSpacing: 0,
-				styles: [],
-				direction: "ltr",
-				path: null,
-				pathStartOffset: 0,
-				pathSide: "left",
-				pathAlign: "baseline",
-				minWidth: 20,
-				splitByGrapheme: false,
-			},
-		],
-	};
+	const [pdfHeight, setPdfHeight] = useState(0);
 
 	const getFirstRecord = () => {
-		axios.get(`http://127.0.0.1:5000/view/first`).then((response) => {
+		axios.get(`http://127.0.0.1:4000/view/first`).then((response) => {
+			
 			if (response?.data?.data) {
-				// console.log("zXzxcx", response?.data?.data)
-				console.log("zXzxcx", JSON.parse(response?.data?.data?.data))
 				setFabricData(response?.data?.data);
-				fabricRef.current.loadFromJSON(JSON.parse(response?.data?.data?.data), () => {
+				console.log('fabricData', response?.data?.data);
+				
+				const apiRes = JSON.parse(response?.data?.data?.data)
+				fabricRef.current.loadFromJSON(apiRes.data, () => {
 					fabricRef.current.renderAll();
 				});
 				fabricRef.current.renderAll();
+
+				if (fabricRef.current && apiRes.height) {
+					fabricRef.current.setHeight(apiRes.height);
+				}
 			} else {
 				setFabricData(null);
 			}
@@ -176,19 +53,26 @@ export const FabricDemo = (pdfData, pages) => {
 		return () => window.removeEventListener("resize", handleResize);
 	}, []);
 
-	console.log(windowDimensions, "windowDimensions");
-
 	useEffect((): any => {
 		const initFabric = () => {
 			fabricRef.current = new fabric.Canvas(canvasRef?.current);
 			fabricRef.current.setHeight(windowDimensions.height);
 			fabricRef.current.setWidth(windowDimensions.width);
-			if (fabricData && fabricData.data) {
-				fabricRef.current.loadFromJSON(fabricData.data, () => {
-					fabricRef.current.renderAll();
-				});
-			}
-			fabricRef.current.renderAll();
+			
+			// console.log('fabricData', fabricData);
+
+			// if (fabricData && fabricData.data.data) {
+			// 	fabricRef.current.loadFromJSON(fabricData.data.data, () => {
+			// 		fabricRef.current.renderAll();
+			// 	});
+			// }
+
+			// if (fabricData && fabricData.data.height) {
+			// 	if (fabricRef.current && pdfHeight) {
+			// 		fabricRef.current.setHeight(fabricData.data.height);
+			// 	}
+			// }
+			// fabricRef.current.renderAll();
 		};
 		const disposeFabric = () => {
 			fabricRef?.current.dispose();
@@ -198,6 +82,12 @@ export const FabricDemo = (pdfData, pages) => {
 			disposeFabric();
 		};
 	}, []);
+
+	useEffect(() => {
+		if (fabricRef.current && pdfHeight) {
+			fabricRef.current.setHeight(pdfHeight);
+		}
+	}, [pdfHeight]);
 
 	function getWindowDimensions() {
 		const {innerWidth: width, innerHeight: height} = window;
@@ -247,14 +137,13 @@ export const FabricDemo = (pdfData, pages) => {
 
 	const saveCanvas = () => {
 		const canvasJSON = fabricRef.current.toJSON();
-		console.log("fabricData", fabricData)
 		const currentId = fabricData && fabricData.id ? fabricData.id : null
 		if (currentId) {
-			axios.post(`http://127.0.0.1:5000/update/${currentId}`, {data: canvasJSON}).then((response) => {
+			axios.post(`http://127.0.0.1:4000/update/${currentId}`, {data: {height: pdfHeight ? pdfHeight : 800, data: canvasJSON}}).then((response) => {
 				getFirstRecord()
 			});
 		} else {
-			axios.post("http://127.0.0.1:5000/create", {data: canvasJSON}).then((response) => {
+			axios.post("http://127.0.0.1:4000/create", {data: {height: pdfHeight ? pdfHeight : 800, data: canvasJSON}}).then((response) => {
 				getFirstRecord()
 			});
 		}
@@ -293,28 +182,41 @@ export const FabricDemo = (pdfData, pages) => {
 								// Prepare canvas using PDF page dimensions
 								const canvas = document.createElement('canvas');
 								const context = canvas.getContext('2d');
-								canvas.height = viewport.height
-								canvas.width = viewport.width;
+								canvas.height = viewport.height; // fetching height of the page
+								canvas.width = viewport.width; // fetching width of the page
 								// Render PDF page into canvas context
 								const renderContext = {
 									canvasContext: context,
 									viewport: viewport
 								};
 								const renderTask = page.render(renderContext);
-								return renderTask.promise.then(() => canvas);
+								return renderTask.promise.then(() => ({ canvas, page}));
 							});
 					});
 			});
 	}
 
-	async function pdfToImage(pdfData) {
+	const pdfToImage = async (pdfData) => {
+		
 		const scale = 1 / window.devicePixelRatio;
-		return (await printPDF(pdfData))
-			.map(async c => {
-				fabricRef.current.add(ImageRef(await c, {
+		let tempPdfHeight = pdfHeight;
+		(await printPDF(pdfData)).map(async c => {
+				const obj = await c;
+				const canvas = obj.canvas;
+				const page = obj.page;
+				// console.log('pageRef',canvas, page, page.view);
+				
+				fabricRef.current.add(ImageRef(canvas, {
 					scaleX: scale,
 					scaleY: scale,
+					top: tempPdfHeight + 20, // 20px of padding
+					stroke: '#07C', //<-- set this
+      				strokeWidth: 5,
+					selectable: false
 				}));
+
+				tempPdfHeight = tempPdfHeight + page.view[3] + 20;
+				setPdfHeight(tempPdfHeight);
 			});
 	}
 
@@ -341,7 +243,9 @@ export const FabricDemo = (pdfData, pages) => {
 			<button onClick={saveCanvas}>{fabricData && fabricData.id ? "Update" : "Save"}</button>
 			<button onClick={handleFileClick}>Upload File</button>
 			<input type="file" accept="application/pdf" ref={hiddenFileInput} onChange={handleChange} style={{display: "none"}}/>
-			<canvas ref={canvasRef} style={{height: "800px", width: "800px"}}/>
+			<div className="canvasContainer" style={{ overflowY: 'scroll', height: '800px', width: '100%', textAlign: 'center' }}>
+				<canvas ref={canvasRef} style={{height: "800px", border: "1px solid #000000"}}/>
+			</div>
 		</div>
 	);
 };
